@@ -9,7 +9,7 @@ export const MOCK_USER = {
 
 export const CURRENT_SPOT = {
   id: 'c1',
-  name: 'Cowo Working Space',
+  name: 'Coworking Space',
   occupancy: 84,
   status: 'Busy',
   updatedAt: 'Updated 2m ago',
