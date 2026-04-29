@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import { LocateFixed, Layers, Coffee, Utensils, Tent, X, Users, Clock, TrendingDown } from 'lucide-react-native';
 import { MAP_MARKERS } from '../../data/mockData';
 
 export const MapScreen = () => {
+  const navigation = useNavigation<any>();
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
 
   const renderIcon = (type: string) => {
@@ -98,7 +100,7 @@ export const MapScreen = () => {
              </View>
           </View>
 
-          <TouchableOpacity className="bg-primary rounded-2xl py-4 items-center justify-center shadow-md flex-row">
+          <TouchableOpacity onPress={() => navigation.navigate('PlaceDetail')} className="bg-primary rounded-2xl py-4 items-center justify-center shadow-md flex-row">
             <Text className="text-white font-bold text-base mr-2">See Details</Text>
           </TouchableOpacity>
         </View>

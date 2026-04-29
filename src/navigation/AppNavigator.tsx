@@ -9,6 +9,8 @@ import { PlaceDetailScreen } from '../screens/PlaceDetail/PlaceDetailScreen';
 import { SearchScreen } from '../screens/Search/SearchScreen';
 import { MapScreen } from '../screens/Map/MapScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
+import { LoginScreen } from '../screens/Auth/LoginScreen';
+import { RegisterScreen } from '../screens/Auth/RegisterScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -53,7 +55,9 @@ const BottomTabs = () => {
 export const AppNavigator = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="MainTabs" component={BottomTabs} />
         <Stack.Screen name="PlaceDetail" component={PlaceDetailScreen} />
       </Stack.Navigator>

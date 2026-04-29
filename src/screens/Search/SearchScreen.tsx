@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TextInput, Image, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, MapPin, Tent, Coffee, Star } from 'lucide-react-native';
 import { NEARBY_DESTINATIONS } from '../../data/mockData';
 
 export const SearchScreen = () => {
+  const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredDestinations = NEARBY_DESTINATIONS.filter(
@@ -117,7 +119,7 @@ export const SearchScreen = () => {
                     <Star color="#FFB347" size={14} fill="#FFB347" />
                     <Text className="text-primary font-bold ml-1 text-sm">{dest.rating}</Text>
                   </View>
-                  <TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('PlaceDetail')}>
                     <Text className="text-accent text-xs font-bold uppercase tracking-wider">
                       View Details
                     </Text>
