@@ -3,8 +3,11 @@ import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Edit2, Users, Settings as SettingsIcon, Bell, Shield, LogOut, ChevronRight } from 'lucide-react-native';
 import { MOCK_USER, RECENT_ACTIVITY } from '../../data/mockData';
+import { useAuth } from '../../contexts/AuthContext';
+import { logoutUser } from '../../services/auth';
 
 export const ProfileScreen = () => {
+  const { user } = useAuth();
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView className="flex-1 px-5 pt-4 pb-24" showsVerticalScrollIndicator={false}>
@@ -20,8 +23,8 @@ export const ProfileScreen = () => {
               <Edit2 color="#FFFFFF" size={14} />
             </TouchableOpacity>
           </View>
-          <Text className="text-primary text-2xl font-extrabold mt-4">{MOCK_USER.fullName}</Text>
-          <Text className="text-gray-500">{MOCK_USER.email}</Text>
+          <Text className="text-primary text-2xl font-extrabold mt-4">{user?.displayName || MOCK_USER.fullName}</Text>
+          <Text className="text-gray-500">{user?.email || MOCK_USER.email}</Text>
         </View>
 
         {/* Stats */}
@@ -89,7 +92,12 @@ export const ProfileScreen = () => {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity className="border border-red-100 bg-red-50/30 rounded-3xl py-4 items-center flex-row justify-center mb-8">
+        <TouchableOpacity 
+          className="border border-red-100 bg-red-50/30 rounded-3xl py-4 items-center flex-row justify-center mb-8"
+          onPress={async () => {
+            await logoutUser();
+          }}
+        >
           <LogOut color="#DC2626" size={18} />
           <Text className="text-red-600 font-bold ml-2">Logout</Text>
         </TouchableOpacity>

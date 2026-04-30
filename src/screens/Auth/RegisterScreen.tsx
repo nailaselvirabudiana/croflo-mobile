@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Lock, Mail, User } from 'lucide-react-native';
+import { registerUser } from '../../services/auth';
 
 export const RegisterScreen = () => {
   const navigation = useNavigation<any>();
@@ -9,11 +10,25 @@ export const RegisterScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    // For demo purposes, we will just navigate to the login or directly to main tabs
-    // Here we'll take the user directly to main tabs
-    navigation.replace('MainTabs');
+  const handleRegister = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await registerUser(email, password, name);
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Registration Failed', error);
+    }
   };
 
   return (
@@ -90,8 +105,13 @@ export const RegisterScreen = () => {
             <TouchableOpacity 
               className="bg-primary rounded-2xl py-4 items-center shadow-md shadow-primary/30"
               onPress={handleRegister}
+              disabled={loading}
             >
-              <Text className="text-white text-lg font-bold">Sign Up</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white text-lg font-bold">Sign Up</Text>
+              )}
             </TouchableOpacity>
           </View>
 

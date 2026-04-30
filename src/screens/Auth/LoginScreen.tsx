@@ -1,17 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Lock, Mail } from 'lucide-react-native';
+import { loginUser } from '../../services/auth';
 
 export const LoginScreen = () => {
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Navigate to the main tabs, resetting the stack if needed.
-    // For simplicity, we just navigate to MainTabs.
-    navigation.replace('MainTabs');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password.');
+      return;
+    }
+    
+    setLoading(true);
+    const { error } = await loginUser(email, password);
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Login Failed', error);
+    }
   };
 
   return (
@@ -68,8 +79,13 @@ export const LoginScreen = () => {
             <TouchableOpacity 
               className="bg-primary rounded-2xl py-4 items-center shadow-md shadow-primary/30"
               onPress={handleLogin}
+              disabled={loading}
             >
-              <Text className="text-white text-lg font-bold">Sign In</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white text-lg font-bold">Sign In</Text>
+              )}
             </TouchableOpacity>
           </View>
 
