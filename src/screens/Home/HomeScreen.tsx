@@ -1,13 +1,27 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { FlashList } from '@shopify/flash-list';
-import { MOCK_USER, RECOMMENDED_PLACES } from '../../data/mockData';
+import { MOCK_USER } from '../../data/mockData';
 import { CurrentSpotCard } from '../../components/CurrentSpotCard';
 import { PlaceCard } from '../../components/PlaceCard';
+import { subscribeToPlaces, Place } from '../../services/firestore';
 
 export const HomeScreen = () => {
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [loading, setLoading] = useState(true);
+  const TypedFlashList = FlashList as any;
+
+  useEffect(() => {
+    const unsubscribe = subscribeToPlaces((data) => {
+      setPlaces(data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView className="flex-1 px-5 pt-4 pb-24" showsVerticalScrollIndicator={false}>
@@ -31,13 +45,21 @@ export const HomeScreen = () => {
               <Text className="text-gray-600 font-medium text-sm">See all</Text>
             </TouchableOpacity>
           </View>
-          <View className="h-32">
-            <FlashList
-              data={RECOMMENDED_PLACES}
-              renderItem={({ item }) => <PlaceCard item={item} />}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            />
+          <View className="h-40">
+            {loading ? (
+              <View className="flex-1 items-center justify-center">
+                <ActivityIndicator color="#3AB4BA" />
+              </View>
+            ) : (
+              <TypedFlashList
+                data={places}
+                renderItem={({ item }: any) => <PlaceCard item={item} />}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                estimatedItemSize={288}
+                keyExtractor={(item: any) => item.id}
+              />
+            )}
           </View>
         </View>
 

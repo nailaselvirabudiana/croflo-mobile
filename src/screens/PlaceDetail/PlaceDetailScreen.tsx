@@ -2,13 +2,16 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Star, TrendingDown } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { BarChart } from 'react-native-gifted-charts';
 import Svg, { Circle } from 'react-native-svg';
 import { PLACE_DETAILS } from '../../data/mockData';
+import { Place } from '../../services/firestore';
 
 export const PlaceDetailScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const { place } = route.params || { place: PLACE_DETAILS }; // Fallback to mock if none provided
 
   // Simple Circular Progress
   const CircularProgress = ({ value, max }: { value: number, max: number }) => {
@@ -49,7 +52,7 @@ export const PlaceDetailScreen = () => {
     );
   };
 
-  const chartData = PLACE_DETAILS.forecast.map(f => ({
+  const chartData = (place.forecast || PLACE_DETAILS.forecast).map((f: any) => ({
     value: f.value,
     label: f.time,
     frontColor: f.time === '14:00' ? '#3AB4BA' : '#E2E8F0',
@@ -69,13 +72,13 @@ export const PlaceDetailScreen = () => {
         {/* Hero */}
         <View className="mb-6">
           <View className="flex-row justify-between items-start mb-1">
-            <Text className="text-primary text-2xl font-extrabold flex-1" numberOfLines={2}>{PLACE_DETAILS.name}</Text>
+            <Text className="text-primary text-2xl font-extrabold flex-1" numberOfLines={2}>{place.name}</Text>
             <View className="bg-blue-50 px-2 py-1 rounded-md flex-row items-center ml-2">
               <Star color="#3AB4BA" size={14} fill="#3AB4BA" />
-              <Text className="text-accent text-sm font-bold ml-1">{PLACE_DETAILS.rating}</Text>
+              <Text className="text-accent text-sm font-bold ml-1">{place.rating}</Text>
             </View>
           </View>
-          <Text className="text-gray-500 text-sm">{PLACE_DETAILS.address}</Text>
+          <Text className="text-gray-500 text-sm">{place.address || 'Bandung, Indonesia'}</Text>
         </View>
 
         {/* Stat Cards */}
@@ -83,18 +86,18 @@ export const PlaceDetailScreen = () => {
           {/* Available Seats */}
           <View className="bg-white rounded-3xl p-5 w-[48%] shadow-sm items-center justify-center border border-gray-100">
             <Text className="text-primary text-xs font-bold mb-4 uppercase tracking-wider text-center">Available Seats</Text>
-            <CircularProgress value={PLACE_DETAILS.availableSeats} max={PLACE_DETAILS.totalSeats} />
+            <CircularProgress value={place.availableSeats || 12} max={place.totalSeats || 45} />
           </View>
-
+ 
           {/* Wait Time */}
           <View className="bg-primary rounded-3xl p-5 w-[48%] shadow-sm justify-between">
             <View>
               <Text className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">Est. Wait Time</Text>
-              <Text className="text-white text-3xl font-extrabold">{PLACE_DETAILS.waitTime}</Text>
+              <Text className="text-white text-3xl font-extrabold">{place.waitTime || '~8 Min'}</Text>
             </View>
             <View className="bg-white/10 px-3 py-2 rounded-lg flex-row items-center mt-4">
               <TrendingDown color="#E2E8F0" size={14} />
-              <Text className="text-gray-300 text-xs ml-2">{PLACE_DETAILS.waitTrend}</Text>
+              <Text className="text-gray-300 text-xs ml-2">{place.waitTrend || 'Stable'}</Text>
             </View>
           </View>
         </View>

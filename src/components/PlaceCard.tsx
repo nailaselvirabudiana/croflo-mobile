@@ -6,10 +6,12 @@ import { useNavigation } from '@react-navigation/native';
 export const PlaceCard = ({ item }: { item: any }) => {
   const navigation = useNavigation<any>();
 
+  if (!item) return null;
+
   return (
     <TouchableOpacity 
       activeOpacity={0.8}
-      onPress={() => navigation.navigate('PlaceDetail')}
+      onPress={() => navigation.navigate('PlaceDetail', { place: item })}
       className="bg-white rounded-2xl w-72 mr-4 shadow-sm flex-row overflow-hidden border border-gray-100"
     >
       <Image source={{ uri: item.imageUrl }} className="w-28 h-full bg-gray-200" resizeMode="cover" />

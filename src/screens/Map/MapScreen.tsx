@@ -1,33 +1,57 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MapView from 'react-native-maps';
 import { LocateFixed, Layers, X, Users, Clock, TrendingDown } from 'lucide-react-native';
-import { MAP_MARKERS } from '../../data/mockData';
 import { MapMarker } from '../../components/MapMarker';
+import { subscribeToPlaces, Place } from '../../services/firestore';
 
 export const MapScreen = () => {
   const navigation = useNavigation<any>();
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
+  const [markers, setMarkers] = useState<Place[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToPlaces((data) => {
+      setMarkers(data);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <View className="flex-1 bg-background relative">
       <MapView 
         style={StyleSheet.absoluteFillObject}
         initialRegion={{
-          latitude: -6.914,
-          longitude: 107.610,
+          latitude: -6.890,
+          longitude: 107.615,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
       >
-        {MAP_MARKERS.map((marker) => (
-          <MapMarker 
-            key={marker.id} 
-            marker={marker}
-            onPress={setSelectedMarker}
-          />
-        ))}
+        {markers.map((place) => {
+          // Map category to marker type
+          const type = place.category.toLowerCase().includes('cafe') ? 'cafe' : 
+                       place.category.toLowerCase().includes('museum') ? 'museum' : 'restaurant';
+          
+          const markerData = {
+            ...place,
+            coordinate: {
+              latitude: place.latitude,
+              longitude: place.longitude,
+            },
+            type,
+          };
+
+          return (
+            <MapMarker 
+              key={place.id} 
+              marker={markerData}
+              onPress={setSelectedMarker}
+            />
+          );
+        })}
       </MapView>
 
       {/* Floating Controls */}
@@ -71,7 +95,7 @@ export const MapScreen = () => {
              </View>
           </View>
 
-          <TouchableOpacity onPress={() => navigation.navigate('PlaceDetail')} className="bg-primary rounded-2xl py-4 items-center justify-center shadow-md flex-row">
+          <TouchableOpacity onPress={() => navigation.navigate('PlaceDetail', { place: selectedMarker })} className="bg-primary rounded-2xl py-4 items-center justify-center shadow-md flex-row">
             <Text className="text-white font-bold text-base mr-2">See Details</Text>
           </TouchableOpacity>
         </View>
