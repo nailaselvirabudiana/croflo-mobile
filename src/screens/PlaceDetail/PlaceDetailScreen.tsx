@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { ArrowLeft, Star, TrendingDown, Bookmark } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { BarChart } from 'react-native-gifted-charts';
 import Svg, { Circle } from 'react-native-svg';
+import { WebView } from 'react-native-webview';
 import { PLACE_DETAILS } from '../../data/mockData';
 import {
   Place,
@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 
 const LATEST_API = 'http://13.213.18.54:8000/latest';
-const LATEST_IMAGE_API = 'http://13.213.18.54:8000/latest-image';
+const VIDEO_STREAM_URL = 'http://13.213.18.54:8000/video';
 
 export const PlaceDetailScreen = () => {
   const navigation = useNavigation();
@@ -34,9 +34,6 @@ export const PlaceDetailScreen = () => {
   // ─── People count from API ──────────────────────────────────────────────
   const [peopleCount, setPeopleCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(true);
-
-  // ─── Live image ─────────────────────────────────────────────────────────
-  const [imageKey, setImageKey] = useState(Date.now()); // bust cache on refresh
 
   // ─── Saved state ────────────────────────────────────────────────────────
   const [saved, setSaved] = useState(false);
@@ -67,10 +64,9 @@ export const PlaceDetailScreen = () => {
     fetchCount();
     checkSaved();
 
-    // Refresh count every 30 seconds
+    // Refresh people count every 30 seconds
     const interval = setInterval(() => {
       fetchCount();
-      setImageKey(Date.now()); // refresh live image
     }, 30_000);
 
     return () => clearInterval(interval);
@@ -153,8 +149,6 @@ export const PlaceDetailScreen = () => {
       frontColor: f.time === '14:00' ? '#3AB4BA' : '#E2E8F0',
     })
   );
-
-  const liveImageUri = `${LATEST_IMAGE_API}?t=${imageKey}`;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -250,8 +244,8 @@ export const PlaceDetailScreen = () => {
           </View>
         </View>
 
-        {/* Live Visual Feed */}
-        <View className="rounded-3xl overflow-hidden mb-6 shadow-md bg-gray-900">
+        {/* Live Visual Feed — MJPEG video stream */}
+        <View className="rounded-3xl overflow-hidden mb-6 shadow-md bg-gray-900" style={{ height: 220 }}>
           {/* Live badge */}
           <View className="absolute top-4 left-4 z-10 bg-busy px-3 py-1.5 rounded-md flex-row items-center">
             <View className="w-2 h-2 rounded-full bg-white mr-2" />
@@ -260,14 +254,31 @@ export const PlaceDetailScreen = () => {
             </Text>
           </View>
 
-          <Image
-            key={imageKey}
-            source={{ uri: liveImageUri }}
-            style={{ width: '100%', height: 200 }}
-            resizeMode="cover"
-            onError={() => {
-              // silently fail – image will show as dark bg
+          <WebView
+            source={{
+              html: `
+                <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                    <style>
+                      * { margin: 0; padding: 0; }
+                      body { background: #111827; display: flex; align-items: center; justify-content: center; width: 100vw; height: 100vh; overflow: hidden; }
+                      img { width: 100%; height: 100%; object-fit: cover; }
+                    </style>
+                  </head>
+                  <body>
+                    <img src="${VIDEO_STREAM_URL}" alt="Live Feed" />
+                  </body>
+                </html>
+              `,
             }}
+            style={{ flex: 1, backgroundColor: '#111827' }}
+            javaScriptEnabled
+            scrollEnabled={false}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            originWhitelist={['*']}
+            mixedContentMode="always"
           />
 
           {/* Camera label */}
@@ -277,17 +288,6 @@ export const PlaceDetailScreen = () => {
             </Text>
           </View>
         </View>
-
-        {/* Refresh button for live feed */}
-        <TouchableOpacity
-          className="flex-row items-center justify-center mb-6 py-2 rounded-xl border border-gray-200 bg-white"
-          onPress={() => {
-            setImageKey(Date.now());
-            fetchCount();
-          }}
-        >
-          <Text className="text-accent font-bold text-sm">↻  Refresh Feed</Text>
-        </TouchableOpacity>
 
         {/* Occupancy Forecast */}
         <View className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mb-8">
