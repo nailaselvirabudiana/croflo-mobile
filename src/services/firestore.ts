@@ -7,7 +7,9 @@ import {
   query,
   QuerySnapshot,
   DocumentData,
-  setDoc
+  setDoc,
+  deleteDoc,
+  where,
 } from 'firebase/firestore';
 import { db } from '../../FirebaseConfig';
 
@@ -32,7 +34,18 @@ export interface Place {
   waitTrend?: string;
 }
 
+export interface SavedPlace {
+  placeId: string;
+  name: string;
+  category: string;
+  rating: number;
+  image?: string;
+  address?: string;
+  savedAt: number; // timestamp ms
+}
+
 const PLACES_COLLECTION = 'places';
+const SAVED_PLACES_COLLECTION = 'savedPlaces';
 
 // Helper to parse coordinates like "6.904° S" or "107.616° E"
 const parseCoordinate = (coordStr: string): number => {
@@ -103,4 +116,83 @@ export const addOrUpdatePlace = async (place: Place) => {
     console.error("Error adding place: ", error);
     return false;
   }
+};
+
+// ─── Saved Places ────────────────────────────────────────────────────────────
+
+/** Save a place for a user. docId = `<userId>_<placeId>` for easy lookup. */
+export const savePlace = async (userId: string, place: Place): Promise<boolean> => {
+  try {
+    const docId = `${userId}_${place.id}`;
+    const ref = doc(db, SAVED_PLACES_COLLECTION, docId);
+    const savedPlace: SavedPlace = {
+      placeId: place.id,
+      name: place.name,
+      category: place.category,
+      rating: place.rating,
+      image: place.image || place.imageUrl || '',
+      address: place.address || '',
+      savedAt: Date.now(),
+    };
+    await setDoc(ref, { userId, ...savedPlace });
+    return true;
+  } catch (error) {
+    console.error("Error saving place: ", error);
+    return false;
+  }
+};
+
+/** Unsave (delete) a saved place for a user. */
+export const unsavePlace = async (userId: string, placeId: string): Promise<boolean> => {
+  try {
+    const docId = `${userId}_${placeId}`;
+    await deleteDoc(doc(db, SAVED_PLACES_COLLECTION, docId));
+    return true;
+  } catch (error) {
+    console.error("Error unsaving place: ", error);
+    return false;
+  }
+};
+
+/** Check if a specific place is saved by a user. */
+export const isPlaceSaved = async (userId: string, placeId: string): Promise<boolean> => {
+  try {
+    const docId = `${userId}_${placeId}`;
+    const snap = await getDoc(doc(db, SAVED_PLACES_COLLECTION, docId));
+    return snap.exists();
+  } catch {
+    return false;
+  }
+};
+
+/** One-time fetch of all saved places for a user. */
+export const getSavedPlaces = async (userId: string): Promise<SavedPlace[]> => {
+  try {
+    const q = query(
+      collection(db, SAVED_PLACES_COLLECTION),
+      where('userId', '==', userId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as SavedPlace);
+  } catch (error) {
+    console.error("Error fetching saved places: ", error);
+    return [];
+  }
+};
+
+/** Real-time subscription to saved places for a user. */
+export const subscribeToSavedPlaces = (
+  userId: string,
+  callback: (places: SavedPlace[]) => void
+) => {
+  const q = query(
+    collection(db, SAVED_PLACES_COLLECTION),
+    where('userId', '==', userId)
+  );
+  return onSnapshot(q, (snap) => {
+    const places = snap.docs.map(d => d.data() as SavedPlace);
+    callback(places);
+  }, (error) => {
+    console.error("Error subscribing to saved places: ", error);
+  });
 };

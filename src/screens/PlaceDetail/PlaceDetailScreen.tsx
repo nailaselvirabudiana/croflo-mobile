@@ -1,24 +1,116 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Star, TrendingDown } from 'lucide-react-native';
+import { ArrowLeft, Star, TrendingDown, Bookmark } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { BarChart } from 'react-native-gifted-charts';
 import Svg, { Circle } from 'react-native-svg';
 import { PLACE_DETAILS } from '../../data/mockData';
-import { Place } from '../../services/firestore';
+import {
+  Place,
+  savePlace,
+  unsavePlace,
+  isPlaceSaved,
+} from '../../services/firestore';
+import { useAuth } from '../../contexts/AuthContext';
+
+const LATEST_API = 'http://13.213.18.54:8000/latest';
+const LATEST_IMAGE_API = 'http://13.213.18.54:8000/latest-image';
 
 export const PlaceDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const { place } = route.params || { place: PLACE_DETAILS }; // Fallback to mock if none provided
+  const { user } = useAuth();
+  const { place } = route.params || { place: PLACE_DETAILS };
 
-  // Simple Circular Progress
-  const CircularProgress = ({ value, max }: { value: number, max: number }) => {
+  // ─── People count from API ──────────────────────────────────────────────
+  const [peopleCount, setPeopleCount] = useState<number | null>(null);
+  const [loadingCount, setLoadingCount] = useState(true);
+
+  // ─── Live image ─────────────────────────────────────────────────────────
+  const [imageKey, setImageKey] = useState(Date.now()); // bust cache on refresh
+
+  // ─── Saved state ────────────────────────────────────────────────────────
+  const [saved, setSaved] = useState(false);
+  const [savingInProgress, setSavingInProgress] = useState(false);
+
+  // Fetch people count
+  const fetchCount = useCallback(async () => {
+    try {
+      const res = await fetch(LATEST_API);
+      const json = await res.json();
+      // count is a float – round up
+      setPeopleCount(Math.ceil(json.count ?? 0));
+    } catch (e) {
+      console.warn('Failed to fetch people count', e);
+    } finally {
+      setLoadingCount(false);
+    }
+  }, []);
+
+  // Check saved status
+  const checkSaved = useCallback(async () => {
+    if (!user) return;
+    const result = await isPlaceSaved(user.uid, place.id);
+    setSaved(result);
+  }, [user, place.id]);
+
+  useEffect(() => {
+    fetchCount();
+    checkSaved();
+
+    // Refresh count every 30 seconds
+    const interval = setInterval(() => {
+      fetchCount();
+      setImageKey(Date.now()); // refresh live image
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [fetchCount, checkSaved]);
+
+  // Toggle saved
+  const handleToggleSave = async () => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Please sign in to save places.');
+      return;
+    }
+    setSavingInProgress(true);
+    try {
+      if (saved) {
+        await unsavePlace(user.uid, place.id);
+        setSaved(false);
+      } else {
+        await savePlace(user.uid, place as Place);
+        setSaved(true);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not update saved status. Please try again.');
+    } finally {
+      setSavingInProgress(false);
+    }
+  };
+
+  // Circular progress component
+  const CircularProgress = ({
+    value,
+    max,
+  }: {
+    value: number;
+    max: number;
+  }) => {
     const radius = 35;
     const strokeWidth = 8;
     const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (value / max) * circumference;
+    const ratio = max > 0 ? Math.min(value / max, 1) : 0;
+    const strokeDashoffset = circumference - ratio * circumference;
 
     return (
       <View className="items-center justify-center relative">
@@ -45,83 +137,171 @@ export const PlaceDetailScreen = () => {
           />
         </Svg>
         <View className="absolute items-center">
-          <Text className="text-primary text-xl font-extrabold leading-none">{value}</Text>
-          <Text className="text-gray-400 text-[10px]">/ {max}</Text>
+          <Text className="text-primary text-xl font-extrabold leading-none">
+            {value}
+          </Text>
+          <Text className="text-gray-400 text-[10px]">orang</Text>
         </View>
       </View>
     );
   };
 
-  const chartData = (place.forecast || PLACE_DETAILS.forecast).map((f: any) => ({
-    value: f.value,
-    label: f.time,
-    frontColor: f.time === '14:00' ? '#3AB4BA' : '#E2E8F0',
-  }));
+  const chartData = (place.forecast || PLACE_DETAILS.forecast).map(
+    (f: any) => ({
+      value: f.value,
+      label: f.time,
+      frontColor: f.time === '14:00' ? '#3AB4BA' : '#E2E8F0',
+    })
+  );
+
+  const liveImageUri = `${LATEST_IMAGE_API}?t=${imageKey}`;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView className="flex-1 px-5 pt-4 pb-10" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-5 pt-4 pb-10"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
-        <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={() => navigation.goBack()} className="mr-4">
+        <View className="flex-row items-center justify-between mb-6">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="mr-4"
+          >
             <ArrowLeft color="#0A1D37" size={24} />
           </TouchableOpacity>
-          <Text className="text-accent text-xl font-extrabold tracking-wide">Cro<Text className="text-primary">flo</Text></Text>
+          <Text className="text-accent text-xl font-extrabold tracking-wide flex-1">
+            Cro<Text className="text-primary">flo</Text>
+          </Text>
+
+          {/* Save button */}
+          <TouchableOpacity
+            onPress={handleToggleSave}
+            disabled={savingInProgress}
+            className="p-2 rounded-full"
+            style={{ backgroundColor: saved ? '#EFF9FA' : '#F1F5F9' }}
+          >
+            {savingInProgress ? (
+              <ActivityIndicator size="small" color="#3AB4BA" />
+            ) : (
+              <Bookmark
+                color={saved ? '#3AB4BA' : '#94A3B8'}
+                fill={saved ? '#3AB4BA' : 'none'}
+                size={22}
+              />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Hero */}
         <View className="mb-6">
           <View className="flex-row justify-between items-start mb-1">
-            <Text className="text-primary text-2xl font-extrabold flex-1" numberOfLines={2}>{place.name}</Text>
+            <Text
+              className="text-primary text-2xl font-extrabold flex-1"
+              numberOfLines={2}
+            >
+              {place.name}
+            </Text>
             <View className="bg-blue-50 px-2 py-1 rounded-md flex-row items-center ml-2">
               <Star color="#3AB4BA" size={14} fill="#3AB4BA" />
-              <Text className="text-accent text-sm font-bold ml-1">{place.rating}</Text>
+              <Text className="text-accent text-sm font-bold ml-1">
+                {place.rating}
+              </Text>
             </View>
           </View>
-          <Text className="text-gray-500 text-sm">{place.address || 'Bandung, Indonesia'}</Text>
+          <Text className="text-gray-500 text-sm">
+            {place.address || 'Bandung, Indonesia'}
+          </Text>
         </View>
 
         {/* Stat Cards */}
         <View className="flex-row justify-between mb-6">
-          {/* Available Seats */}
+          {/* People count card */}
           <View className="bg-white rounded-3xl p-5 w-[48%] shadow-sm items-center justify-center border border-gray-100">
-            <Text className="text-primary text-xs font-bold mb-4 uppercase tracking-wider text-center">Available Seats</Text>
-            <CircularProgress value={place.availableSeats || 12} max={place.totalSeats || 45} />
+            <Text className="text-primary text-xs font-bold mb-4 uppercase tracking-wider text-center">
+              Jumlah Orang
+            </Text>
+            {loadingCount ? (
+              <ActivityIndicator color="#3AB4BA" size="large" />
+            ) : (
+              <CircularProgress
+                value={peopleCount ?? 0}
+                max={place.totalSeats || 50}
+              />
+            )}
           </View>
- 
+
           {/* Wait Time */}
           <View className="bg-primary rounded-3xl p-5 w-[48%] shadow-sm justify-between">
             <View>
-              <Text className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">Est. Wait Time</Text>
-              <Text className="text-white text-3xl font-extrabold">{place.waitTime || '~8 Min'}</Text>
+              <Text className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">
+                Est. Wait Time
+              </Text>
+              <Text className="text-white text-3xl font-extrabold">
+                {place.waitTime || '~8 Min'}
+              </Text>
             </View>
             <View className="bg-white/10 px-3 py-2 rounded-lg flex-row items-center mt-4">
               <TrendingDown color="#E2E8F0" size={14} />
-              <Text className="text-gray-300 text-xs ml-2">{place.waitTrend || 'Stable'}</Text>
+              <Text className="text-gray-300 text-xs ml-2">
+                {place.waitTrend || 'Stable'}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Live Visual Feed */}
-        <View className="bg-gray-900 rounded-3xl h-48 mb-6 p-4 justify-between shadow-md">
-          <View className="bg-busy px-3 py-1.5 rounded-md self-start flex-row items-center">
+        <View className="rounded-3xl overflow-hidden mb-6 shadow-md bg-gray-900">
+          {/* Live badge */}
+          <View className="absolute top-4 left-4 z-10 bg-busy px-3 py-1.5 rounded-md flex-row items-center">
             <View className="w-2 h-2 rounded-full bg-white mr-2" />
-            <Text className="text-white text-xs font-bold uppercase tracking-wider">Live Visual Feed</Text>
+            <Text className="text-white text-xs font-bold uppercase tracking-wider">
+              Live Visual Feed
+            </Text>
           </View>
-          <View className="self-end bg-black/50 px-3 py-1.5 rounded-full border border-gray-700">
-            <Text className="text-gray-300 text-[10px] font-mono tracking-widest">CAM_04 // DAGO_MAIN</Text>
+
+          <Image
+            key={imageKey}
+            source={{ uri: liveImageUri }}
+            style={{ width: '100%', height: 200 }}
+            resizeMode="cover"
+            onError={() => {
+              // silently fail – image will show as dark bg
+            }}
+          />
+
+          {/* Camera label */}
+          <View className="absolute bottom-4 right-4 bg-black/50 px-3 py-1.5 rounded-full border border-gray-700">
+            <Text className="text-gray-300 text-[10px] font-mono tracking-widest">
+              CAM_04 // DAGO_MAIN
+            </Text>
           </View>
         </View>
+
+        {/* Refresh button for live feed */}
+        <TouchableOpacity
+          className="flex-row items-center justify-center mb-6 py-2 rounded-xl border border-gray-200 bg-white"
+          onPress={() => {
+            setImageKey(Date.now());
+            fetchCount();
+          }}
+        >
+          <Text className="text-accent font-bold text-sm">↻  Refresh Feed</Text>
+        </TouchableOpacity>
 
         {/* Occupancy Forecast */}
         <View className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 mb-8">
           <View className="flex-row justify-between items-center mb-6">
-            <Text className="text-primary text-lg font-bold">Occupancy Forecast</Text>
+            <Text className="text-primary text-lg font-bold">
+              Occupancy Forecast
+            </Text>
             <View className="bg-blue-50 px-3 py-1 rounded-full">
-              <Text className="text-accent text-xs font-bold uppercase">Today</Text>
+              <Text className="text-accent text-xs font-bold uppercase">
+                Today
+              </Text>
             </View>
           </View>
-          
+
           <View className="items-center h-48 justify-center">
             <BarChart
               data={chartData}
@@ -136,11 +316,14 @@ export const PlaceDetailScreen = () => {
               noOfSections={3}
               maxValue={100}
               initialSpacing={0}
-              xAxisLabelTextStyle={{ color: '#0A1D37', fontSize: 10, fontWeight: 'bold' }}
+              xAxisLabelTextStyle={{
+                color: '#0A1D37',
+                fontSize: 10,
+                fontWeight: 'bold',
+              }}
             />
           </View>
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
