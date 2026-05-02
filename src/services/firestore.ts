@@ -1,7 +1,7 @@
-import { 
-  collection, 
-  getDocs, 
-  doc, 
+import {
+  collection,
+  getDocs,
+  doc,
   getDoc,
   onSnapshot,
   query,
@@ -52,7 +52,7 @@ const parseCoordinate = (coordStr: string): number => {
   if (!coordStr) return 0;
   const match = coordStr.match(/([\d.]+)/);
   if (!match) return 0;
-  
+
   let val = parseFloat(match[1]);
   if (coordStr.includes('S') || coordStr.includes('W')) {
     val = -val;
@@ -62,22 +62,42 @@ const parseCoordinate = (coordStr: string): number => {
 
 // Map Firestore doc to Place interface
 const mapDocToPlace = (docId: string, data: any): Place => {
-  const latitude = data.coordinates ? parseCoordinate(data.coordinates[0]) : 0;
-  const longitude = data.coordinates ? parseCoordinate(data.coordinates[1]) : 0;
-  
+  let latitude = 0;
+  let longitude = 0;
+
+  const coords = data.coordinates;
+  if (coords) {
+    if (typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
+      // Firestore GeoPoint: { latitude: -6.904, longitude: 107.616 }
+      latitude = coords.latitude;
+      longitude = coords.longitude;
+    } else if (coords[0] && coords[1]) {
+      // String array: ["6.904° S", "107.616° E"]
+      latitude = parseCoordinate(String(coords[0]));
+      longitude = parseCoordinate(String(coords[1]));
+    }
+  }
+
+  // Fallback: top-level numeric latitude/longitude fields
+  if (latitude === 0 && longitude === 0) {
+    if (typeof data.latitude === 'number') latitude = data.latitude;
+    if (typeof data.longitude === 'number') longitude = data.longitude;
+  }
+
   return {
     id: docId,
     name: data.name || '',
     description: data.description || '',
-    coordinates: data.coordinates || [],
+    coordinates: coords || [],
     latitude,
     longitude,
     rating: data.rating || 0,
-    image: data.image || '',
-    imageUrl: data.image || '', // Alias for compatibility
+    image: data.image || data.imageUrl || '',
+    imageUrl: data.image || data.imageUrl || '',
     category: data.category || '',
-    occupancy: data.occupancy || Math.floor(Math.random() * 100), // Fallback for UI
-    distance: data.distance || '0.8 km', // Fallback for UI
+    occupancy: data.occupancy !== undefined ? data.occupancy : Math.floor(Math.random() * 100),
+    distance: data.distance || '0.8 km',
+    address: data.address || '',
   };
 };
 
@@ -95,7 +115,7 @@ export const getPlaces = async (): Promise<Place[]> => {
 // Listen to places (Real-time updates)
 export const subscribeToPlaces = (callback: (places: Place[]) => void) => {
   const q = query(collection(db, PLACES_COLLECTION));
-  
+
   const unsubscribe = onSnapshot(q, (querySnapshot: QuerySnapshot<DocumentData>) => {
     const places = querySnapshot.docs.map(doc => mapDocToPlace(doc.id, doc.data()));
     callback(places);

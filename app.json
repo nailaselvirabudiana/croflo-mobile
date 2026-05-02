@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Croflo butuh lokasi kamu untuk menampilkan tempat-tempat terdekat di peta.",
+        "NSLocationAlwaysUsageDescription": "Croflo butuh lokasi kamu untuk menampilkan tempat-tempat terdekat di peta."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +26,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.reksti_tubes_bismillah"
+      "package": "com.anonymous.reksti_tubes_bismillah",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

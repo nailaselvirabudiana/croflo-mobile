@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Marker } from 'react-native-maps';
-import { Coffee, Utensils, Tent } from 'lucide-react-native';
+import { Coffee, ShoppingBag, Landmark, Utensils, BookOpen, MapPin } from 'lucide-react-native';
 
 interface MapMarkerProps {
   marker: {
@@ -12,45 +12,99 @@ interface MapMarkerProps {
     };
     name: string;
     type: string;
+    occupancy?: number;
   };
   onPress: (marker: any) => void;
 }
 
-export const MapMarker = ({ marker, onPress }: MapMarkerProps) => {
-  const renderIcon = (type: string) => {
-    switch (type) {
-      case 'cafe': return <Coffee color="#FFFFFF" size={16} />;
-      case 'restaurant': return <Utensils color="#FFFFFF" size={16} />;
-      case 'museum': return <Tent color="#FFFFFF" size={16} />;
-      default: return <Coffee color="#FFFFFF" size={16} />;
-    }
-  };
+const getConfig = (category: string): { color: string; Icon: any } => {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('cafe') || cat.includes('coffee'))
+    return { color: '#D97706', Icon: Coffee };
+  if (cat.includes('mall') || cat.includes('shop'))
+    return { color: '#DC2626', Icon: ShoppingBag };
+  if (cat.includes('museum') || cat.includes('wisata'))
+    return { color: '#10B981', Icon: Landmark };
+  if (cat.includes('restaurant') || cat.includes('resto') || cat.includes('food'))
+    return { color: '#DC2626', Icon: Utensils };
+  if (cat.includes('edu') || cat.includes('university') || cat.includes('school') || cat.includes('itb'))
+    return { color: '#6366F1', Icon: BookOpen };
+  return { color: '#3AB4BA', Icon: MapPin };
+};
 
-  const getMarkerColor = (type: string) => {
-    switch (type) {
-      case 'cafe': return '#D97706';
-      case 'restaurant': return '#DC2626';
-      case 'museum': return '#10B981';
-      default: return '#3AB4BA';
-    }
-  };
+export const MapMarker = ({ marker, onPress }: MapMarkerProps) => {
+  const { color, Icon } = getConfig(marker.type);
+  // On Android, we need tracksViewChanges=true initially so the custom view
+  // gets rendered, then flip it off for performance after first paint.
+  const [tracked, setTracked] = useState(Platform.OS === 'android');
 
   return (
-    <Marker 
+    <Marker
       coordinate={marker.coordinate}
       onPress={() => onPress(marker)}
+      tracksViewChanges={tracked}
+      onLayout={() => {
+        // After the first layout, stop tracking for performance
+        if (tracked) {
+          setTimeout(() => setTracked(false), 500);
+        }
+      }}
     >
-      <View className="items-center">
-        <View 
-          className="w-10 h-10 rounded-full items-center justify-center border-4 border-white shadow-sm"
-          style={{ backgroundColor: getMarkerColor(marker.type) }}
-        >
-          {renderIcon(marker.type)}
+      <View style={styles.container}>
+        {/* Colored circle with icon */}
+        <View style={[styles.circle, { backgroundColor: color }]}>
+          <Icon color="#FFFFFF" size={16} />
         </View>
-        <View className="bg-white px-2 py-1 rounded-full shadow-sm mt-1 border border-gray-100">
-          <Text className="text-primary text-[10px] font-bold">{marker.name}</Text>
+        {/* Name label */}
+        <View style={styles.label}>
+          <Text style={styles.labelText} numberOfLines={1}>
+            {marker.name}
+          </Text>
         </View>
       </View>
     </Marker>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    width: 120,
+  },
+  circle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  label: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  labelText: {
+    color: '#0A1D37',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+});
