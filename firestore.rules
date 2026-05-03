@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validPlaceTotalSeats() {
+      return !('totalSeats' in request.resource.data)
+        || (request.resource.data.totalSeats is number
+          && request.resource.data.totalSeats > 0
+          && request.resource.data.totalSeats == floor(request.resource.data.totalSeats));
+    }
+
+    // 1. Users collection - Profile data including 'visits'
+    // Users can only read and write their own profile document
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Places collection - Public data
+    // Everyone can read place details/occupancy, but only authenticated users can edit.
+    //
+    // App expects optional numeric field:
+    //   totalSeats (number) — venue capacity for occupancy / estimated wait in the client.
+    // Other common fields: name, category, rating, image, coordinates, address, forecast, etc.
+    //
+    // Optional write validation: if totalSeats is set, it must be a positive whole number.
+    match /places/{placeId} {
+      allow read: if true;
+      allow create: if request.auth != null && validPlaceTotalSeats();
+      allow update: if request.auth != null && validPlaceTotalSeats();
+      allow delete: if request.auth != null;
+    }
+
+    // 3. Saved Places collection - Personal bookmarks
+    // Users can only see and manage their own saved places
+    match /savedPlaces/{docId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // 4. Generic data collection (if used for other app settings)
+    match /data/{doc} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 5. User (singular) collection - Compatibility for the 'user' collection
+    match /user/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Default: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

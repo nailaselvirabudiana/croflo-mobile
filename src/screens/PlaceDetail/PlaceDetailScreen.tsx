@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,25 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const LATEST_API = 'http://13.213.18.54:8000/latest';
 const VIDEO_STREAM_URL = 'http://13.213.18.54:8000/video';
+
+/** Minutes at ~100% occupancy; wait scales linearly with people/capacity. */
+const WAIT_MINUTES_AT_FULL_CAPACITY = 15;
+
+function formatEstimatedWaitMinutes(
+  peopleCount: number | null,
+  loadingCount: boolean,
+  capacity: number
+): string {
+  if (loadingCount && peopleCount === null) return '…';
+  const cap = capacity > 0 ? capacity : 50;
+  const count = peopleCount ?? 0;
+  const ratio = count / cap;
+  const minutes = Math.max(
+    1,
+    Math.min(90, Math.round(ratio * WAIT_MINUTES_AT_FULL_CAPACITY))
+  );
+  return `~${minutes} Min`;
+}
 
 export const PlaceDetailScreen = () => {
   const navigation = useNavigation();
@@ -150,6 +169,15 @@ export const PlaceDetailScreen = () => {
     })
   );
 
+  const estimatedCapacity =
+    place.totalSeats && place.totalSeats > 0 ? place.totalSeats : 50;
+
+  const estimatedWaitLabel = useMemo(
+    () =>
+      formatEstimatedWaitMinutes(peopleCount, loadingCount, estimatedCapacity),
+    [peopleCount, loadingCount, estimatedCapacity]
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView
@@ -232,7 +260,7 @@ export const PlaceDetailScreen = () => {
                 Est. Wait Time
               </Text>
               <Text className="text-white text-3xl font-extrabold">
-                {place.waitTime || '~8 Min'}
+                {estimatedWaitLabel}
               </Text>
             </View>
             <View className="bg-white/10 px-3 py-2 rounded-lg flex-row items-center mt-4">

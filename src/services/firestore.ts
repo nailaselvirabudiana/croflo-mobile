@@ -71,6 +71,14 @@ const mapDocToPlace = (docId: string, data: any): Place => {
       // Firestore GeoPoint: { latitude: -6.904, longitude: 107.616 }
       latitude = coords.latitude;
       longitude = coords.longitude;
+    } else if (typeof coords === 'string') {
+      // Single string: "[6.897° S, 107.612° E]" or "6.897° S, 107.612° E"
+      const trimmed = coords.replace(/^\[|\]$/g, '').trim();
+      const parts = trimmed.split(',').map((s: string) => s.trim());
+      if (parts.length >= 2) {
+        latitude = parseCoordinate(parts[0]);
+        longitude = parseCoordinate(parts[1]);
+      }
     } else if (coords[0] && coords[1]) {
       // String array: ["6.904° S", "107.616° E"]
       latitude = parseCoordinate(String(coords[0]));
@@ -83,6 +91,11 @@ const mapDocToPlace = (docId: string, data: any): Place => {
     if (typeof data.latitude === 'number') latitude = data.latitude;
     if (typeof data.longitude === 'number') longitude = data.longitude;
   }
+
+  const totalSeats =
+    typeof data.totalSeats === 'number' && data.totalSeats > 0
+      ? Math.floor(data.totalSeats)
+      : undefined;
 
   return {
     id: docId,
@@ -98,6 +111,12 @@ const mapDocToPlace = (docId: string, data: any): Place => {
     occupancy: data.occupancy !== undefined ? data.occupancy : Math.floor(Math.random() * 100),
     distance: data.distance || '0.8 km',
     address: data.address || '',
+    availableSeats:
+      typeof data.availableSeats === 'number' ? data.availableSeats : undefined,
+    totalSeats,
+    forecast: Array.isArray(data.forecast) ? data.forecast : undefined,
+    waitTime: typeof data.waitTime === 'string' ? data.waitTime : undefined,
+    waitTrend: typeof data.waitTrend === 'string' ? data.waitTrend : undefined,
   };
 };
 
