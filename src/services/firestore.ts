@@ -216,3 +216,28 @@ export const subscribeToSavedPlaces = (
     console.error("Error subscribing to saved places: ", error);
   });
 };
+
+export interface UserStats {
+  visits: number;
+  savedPlaces?: number;
+}
+
+const USERS_COLLECTION = 'users';
+
+/** Real-time subscription to user statistics (visits, etc.) */
+export const subscribeToUserStats = (
+  userId: string,
+  callback: (stats: UserStats) => void
+) => {
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  return onSnapshot(userRef, (snap) => {
+    if (snap.exists()) {
+      callback(snap.data() as UserStats);
+    } else {
+      // Fallback if user doc doesn't exist yet
+      callback({ visits: 0 });
+    }
+  }, (error) => {
+    console.error("Error subscribing to user stats: ", error);
+  });
+};

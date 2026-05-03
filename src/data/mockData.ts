@@ -116,19 +116,4 @@ export const MAP_MARKERS = [
   }
 ];
 
-export const RECENT_ACTIVITY = [
-  {
-    id: 'a1',
-    name: 'Jabarano Coffee Dago',
-    time: 'Visited yesterday at 14:20',
-    status: 'Low',
-    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=300&auto=format&fit=crop',
-  },
-  {
-    id: 'a2',
-    name: 'Museum Asia Afrika',
-    time: 'Visited Oct 12, 11:00',
-    status: 'Medium',
-    imageUrl: 'https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?q=80&w=300&auto=format&fit=crop',
-  }
-];
+export const RECENT_ACTIVITY: any[] = [];

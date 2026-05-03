@@ -25,6 +25,8 @@ import { logoutUser } from '../../services/auth';
 import {
   SavedPlace,
   subscribeToSavedPlaces,
+  subscribeToUserStats,
+  UserStats,
 } from '../../services/firestore';
 import { Star } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -35,6 +37,7 @@ export const ProfileScreen = () => {
 
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
+  const [userStats, setUserStats] = useState<UserStats>({ visits: 0 });
 
   useEffect(() => {
     if (!user) {
@@ -42,19 +45,27 @@ export const ProfileScreen = () => {
       return;
     }
 
-    const unsubscribe = subscribeToSavedPlaces(user.uid, (places) => {
+    const unsubscribeSaved = subscribeToSavedPlaces(user.uid, (places) => {
       // Sort newest first
       const sorted = [...places].sort((a, b) => b.savedAt - a.savedAt);
       setSavedPlaces(sorted);
       setLoadingSaved(false);
     });
 
-    return unsubscribe;
+    const unsubscribeStats = subscribeToUserStats(user.uid, (stats) => {
+      setUserStats(stats);
+    });
+
+    return () => {
+      unsubscribeSaved();
+      unsubscribeStats();
+    };
   }, [user]);
 
   const SavedPlaceCard = ({ item }: { item: SavedPlace }) => (
     <TouchableOpacity
       activeOpacity={0.8}
+      onPress={() => navigation.navigate('PlaceDetail', { place: item })}
       className="bg-white rounded-2xl mb-3 shadow-sm flex-row overflow-hidden border border-gray-100"
     >
       {/* Image */}
@@ -130,7 +141,7 @@ export const ProfileScreen = () => {
         <View className="flex-row justify-between mb-8">
           <View className="bg-white flex-1 rounded-3xl items-center py-6 shadow-sm border border-gray-50 mr-4">
             <Text className="text-primary text-3xl font-extrabold mb-1">
-              {MOCK_USER.visits}
+              {userStats.visits}
             </Text>
             <Text className="text-gray-500 text-xs font-bold tracking-wider uppercase">
               Visits
@@ -189,49 +200,69 @@ export const ProfileScreen = () => {
             <Text className="text-primary text-lg font-bold">
               Recent Activity
             </Text>
-            <TouchableOpacity>
-              <Text className="text-accent font-bold text-sm">View All</Text>
-            </TouchableOpacity>
+            {RECENT_ACTIVITY && RECENT_ACTIVITY.length > 0 ? (
+              <TouchableOpacity>
+                <Text className="text-accent font-bold text-sm">View All</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
-          {RECENT_ACTIVITY.map((activity) => (
-            <View
-              key={activity.id}
-              className="bg-white rounded-3xl p-4 flex-row items-center mb-3 shadow-sm border border-gray-50"
-            >
-              <Image
-                source={{ uri: activity.imageUrl }}
-                className="w-12 h-12 rounded-full mr-4 bg-gray-200"
-              />
-              <View className="flex-1">
-                <Text className="text-primary font-bold text-base">
-                  {activity.name}
-                </Text>
-                <Text className="text-gray-500 text-xs">{activity.time}</Text>
-              </View>
+          {!RECENT_ACTIVITY || RECENT_ACTIVITY.length === 0 ? (
+            <View className="bg-white rounded-3xl p-8 items-center border border-gray-100">
+              <Users color="#CBD5E1" size={36} />
+              <Text className="text-gray-400 font-bold mt-3 text-center">
+                There is no location that you have been
+              </Text>
+              <Text className="text-gray-300 text-xs text-center mt-1">
+                Your visit history will appear here
+              </Text>
+            </View>
+          ) : (
+            RECENT_ACTIVITY.map((activity: any) => (
               <View
-                className={`px-3 py-1 rounded-full flex-row items-center ${
-                  activity.status === 'Low' ? 'bg-green-50' : 'bg-orange-50'
-                }`}
+                key={activity.id || Math.random().toString()}
+                className="bg-white rounded-3xl p-4 flex-row items-center mb-3 shadow-sm border border-gray-50"
               >
-                <Users
-                  size={12}
-                  color={
-                    activity.status === 'Low' ? '#16A34A' : '#D97706'
-                  }
-                />
-                <Text
-                  className={`text-xs font-bold ml-1 ${
-                    activity.status === 'Low'
-                      ? 'text-green-600'
-                      : 'text-orange-600'
+                {activity.imageUrl ? (
+                  <Image
+                    source={{ uri: activity.imageUrl }}
+                    className="w-12 h-12 rounded-full mr-4 bg-gray-200"
+                  />
+                ) : (
+                  <View className="w-12 h-12 rounded-full mr-4 bg-gray-100 items-center justify-center">
+                    <MapPin color="#CBD5E1" size={20} />
+                  </View>
+                )}
+                <View className="flex-1">
+                  <Text className="text-primary font-bold text-base">
+                    {activity.name || 'Unknown Place'}
+                  </Text>
+                  <Text className="text-gray-500 text-xs">{activity.time || 'No date'}</Text>
+                </View>
+                <View
+                  className={`px-3 py-1 rounded-full flex-row items-center ${
+                    activity.status === 'Low' ? 'bg-green-50' : 'bg-orange-50'
                   }`}
                 >
-                  {activity.status}
-                </Text>
+                  <Users
+                    size={12}
+                    color={
+                      activity.status === 'Low' ? '#16A34A' : '#D97706'
+                    }
+                  />
+                  <Text
+                    className={`text-xs font-bold ml-1 ${
+                      activity.status === 'Low'
+                        ? 'text-green-600'
+                        : 'text-orange-600'
+                    }`}
+                  >
+                    {activity.status || 'Unknown'}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Settings */}
